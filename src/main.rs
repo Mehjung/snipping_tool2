@@ -2,19 +2,16 @@ mod modules;
 
 use modules::drawing::Drawing;
 use modules::renderer::Render;
-use std::mem::ManuallyDrop;
+use modules::win_fact::{WindowBuilder, WindowType};
+
 use windows::{
     core::*,
-    Foundation::Numerics::Matrix3x2,
     Win32::{
         Foundation::*,
-        Graphics::{
-            Direct2D::Common::*, Direct2D::*, Direct3D::*, Direct3D11::*, DirectComposition::*,
-            Dxgi::Common::*, Dxgi::*, Gdi::*,
-        },
+        Graphics::{Direct2D::Common::*, Gdi::*},
         System::LibraryLoader::*,
         System::SystemServices::*,
-        UI::WindowsAndMessaging::*,
+        UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
     },
 };
 
@@ -32,42 +29,21 @@ macro_rules! get_y_lparam {
 
 fn main() -> Result<()> {
     unsafe {
-        let instance: HINSTANCE = GetModuleHandleA(None)?.into();
-        let window_class = s!("TransparentWindowClass");
+        let window = WindowBuilder::new()
+            .set_window_type(WindowType::Opaque)
+            .set_window_proc(opaque_handler)
+            .build()
+            .expect("Failed to create main window");
 
-        let wc = WNDCLASSA {
-            lpfnWndProc: Some(window_proc),
-            hInstance: instance,
-            lpszClassName: window_class,
-            ..Default::default()
-        };
-
-        RegisterClassA(&wc);
-
-        let hwnd = CreateWindowExA(
-            WS_EX_NOREDIRECTIONBITMAP,
-            window_class,
-            s!("Transparent Window"),
-            WS_POPUP,
-            100,
-            100,
-            800,
-            600,
-            None,
-            None,
-            instance,
-            None,
+        let render = Render::new(window.get_hwnd()).unwrap();
+        SetWindowLongPtrA(
+            window.get_hwnd(),
+            GWLP_USERDATA,
+            &render as *const _ as isize,
         );
 
-        if hwnd.0 == 0 {
-            panic!("Failed to create window");
-        }
-
-        let render = Render::new(hwnd).unwrap();
-
-        SetWindowLongPtrA(hwnd, GWLP_USERDATA, &render as *const _ as isize);
-
-        ShowWindow(hwnd, SW_SHOW);
+        // Hier kannst du die weiteren Operationen auf dem Fenster ausführen
+        window.show();
 
         let mut msg = MSG::default();
         while GetMessageA(&mut msg, None, 0, 0).into() {
@@ -79,7 +55,7 @@ fn main() -> Result<()> {
     }
 }
 
-extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+extern "system" fn win_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe {
         let render_ptr = GetWindowLongPtrA(hwnd, GWLP_USERDATA) as *const Render;
         if render_ptr.is_null() {
@@ -94,6 +70,12 @@ extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPA
         match msg {
             WM_CREATE => {
                 RECT = None; // Initialisieren als None
+                LRESULT(0)
+            }
+            WM_KEYDOWN => {
+                if wparam.0 == VK_ESCAPE.0 as usize {
+                    PostQuitMessage(0);
+                }
                 LRESULT(0)
             }
             WM_MOUSEMOVE | WM_LBUTTONDOWN | WM_LBUTTONUP => {
@@ -125,7 +107,7 @@ extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPA
             WM_PAINT => {
                 if let Some(rect) = RECT {
                     // Create a solid color brush
-                    let brush_color = D2D1_COLOR_F {
+                    let _brush_color = D2D1_COLOR_F {
                         r: 0.0,
                         g: 0.0,
                         b: 0.0,
@@ -158,5 +140,60 @@ fn update_rect(rect: &mut D2D_RECT_F, x: f32, y: f32) {
         rect.top = y;
     } else {
         rect.bottom = y;
+    }
+}
+
+pub extern "system" fn opaque_handler(
+    window: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    unsafe {
+        let render_ptr = GetWindowLongPtrA(window, GWLP_USERDATA) as *const Render;
+        if render_ptr.is_null() {
+            return DefWindowProcA(window, message, wparam, lparam);
+        }
+
+        let render = &*render_ptr;
+        let drawing = Drawing::new(&render);
+        match message {
+            WM_KEYDOWN => {
+                if wparam.0 == VK_ESCAPE.0 as usize {
+                    PostQuitMessage(0);
+                }
+                LRESULT(0)
+            }
+            WM_DESTROY => {
+                println!("WM_DESTROY");
+                PostQuitMessage(0);
+                LRESULT(0)
+            }
+            WM_PAINT => {
+                println!("WM_PAINT");
+                let _ = drawing.fill_background(
+                    window,
+                    D2D1_COLOR_F {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    },
+                );
+
+                LRESULT(0)
+            }
+            WM_ERASEBKGND => {
+                LRESULT(1) // Return 1 to indicate that the background has been erased
+            }
+            WM_ERASEBKGND => {
+                //if FIRST_PAINT.swap(false, Ordering::SeqCst) {
+
+                //}
+                LRESULT(0)
+            }
+
+            _ => DefWindowProcW(window, message, wparam, lparam),
+        }
     }
 }

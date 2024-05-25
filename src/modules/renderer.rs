@@ -1,15 +1,12 @@
 use std::mem::ManuallyDrop;
 use windows::{
     core::*,
-    Foundation::Numerics::Matrix3x2,
     Win32::{
         Foundation::*,
         Graphics::{
             Direct2D::Common::*, Direct2D::*, Direct3D::*, Direct3D11::*, DirectComposition::*,
             Dxgi::Common::*, Dxgi::*, Gdi::*,
         },
-        System::LibraryLoader::*,
-        System::SystemServices::*,
         UI::WindowsAndMessaging::*,
     },
 };
@@ -149,6 +146,7 @@ impl Render {
             d2d_context.SetTarget(&target_bitmap);
 
             d2d_context.BeginDraw();
+
             d2d_context.Clear(Some(&D2D1_COLOR_F {
                 r: 0.0,
                 g: 0.0,

@@ -4,21 +4,13 @@ use std::mem::ManuallyDrop;
 use windows::core::Result;
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
-use windows::Win32::Graphics::Direct2D::{
-    ID2D1Brush, ID2D1Geometry, ID2D1PathGeometry, D2D1_COMBINE_MODE_EXCLUDE,
-};
+use windows::Win32::Graphics::Direct2D::{ID2D1Brush, ID2D1Geometry, D2D1_COMBINE_MODE_EXCLUDE};
 use windows::Win32::Graphics::Gdi::{BeginPaint, EndPaint, HDC, PAINTSTRUCT};
 use windows::{
     core::*,
     Win32::{
         Foundation::*,
-        Graphics::{
-            Direct2D::Common::*, Direct2D::*, Direct3D::*, Direct3D11::*, DirectComposition::*,
-            Dxgi::Common::*, Dxgi::*, Gdi::*,
-        },
-        System::LibraryLoader::*,
-        System::SystemServices::*,
-        UI::WindowsAndMessaging::*,
+        Graphics::{Direct2D::Common::*, Direct2D::*},
     },
 };
 
@@ -43,13 +35,13 @@ impl<'a> Drawing<'a> {
 
         let result = render_fn(&hdc);
 
-        unsafe { EndPaint(hwnd, &ps) };
+        let _ = unsafe { EndPaint(hwnd, &ps) };
 
         result
     }
 
     pub fn draw_overlay(&self, hwnd: HWND, rect: Option<D2D_RECT_F>) -> Result<()> {
-        self.provide_env(hwnd, |hdc| {
+        self.provide_env(hwnd, |_hdc| {
             self.render.with_render_context(|d2d_context| {
                 if let Some(rect) = rect {
                     unsafe {
@@ -125,6 +117,29 @@ impl<'a> Drawing<'a> {
                         );
                         d2d_context.PopLayer();
                     }
+                }
+
+                Ok(())
+            })
+        })
+    }
+    pub fn fill_background(&self, hwnd: HWND, color: D2D1_COLOR_F) -> Result<()> {
+        self.provide_env(hwnd, |_hdc| {
+            self.render.with_render_context(|d2d_context| {
+                unsafe {
+                    let brush = d2d_context.CreateSolidColorBrush(&color, None).unwrap();
+
+                    let size = d2d_context.GetSize();
+
+                    d2d_context.FillRectangle(
+                        &D2D_RECT_F {
+                            left: 0.0,
+                            top: 0.0,
+                            right: size.width,
+                            bottom: size.height,
+                        },
+                        &brush,
+                    );
                 }
 
                 Ok(())
