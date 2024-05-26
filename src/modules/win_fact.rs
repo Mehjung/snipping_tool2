@@ -1,10 +1,12 @@
+use crate::modules::drawing::Drawing;
+use crate::modules::renderer::Render;
 use std::{any::Any, default, os::raw::c_void, time::Instant};
 use windows::{
     core::{w, Error, PCWSTR},
     Win32::{
         Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
         Graphics::{
-            Direct2D::Common::D2D_POINT_2F,
+            Direct2D::Common::{D2D1_COLOR_F, D2D_POINT_2F, D2D_RECT_F},
             Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{CreateSolidBrush, RedrawWindow, RDW_ERASE, RDW_INVALIDATE, RDW_NOINTERNALPAINT},
         },
@@ -23,15 +25,41 @@ use windows::{
         },
     },
 };
-
+#[derive(Clone)]
 pub struct Window {
-    pub hwnd: HWND,
+    hwnd: HWND,
     pub window_type: WindowType,
+    drawing: Option<Drawing>,
 }
 
 impl Window {
+    pub fn new(hwnd: HWND, window_type: WindowType) -> Self {
+        Window {
+            hwnd,
+            window_type,
+            drawing: None,
+        }
+    }
+    pub fn draw_overlay(&self, rect: Option<D2D_RECT_F>) -> Result<(), Error> {
+        match &self.drawing {
+            Some(drawing) => drawing.draw_overlay(self.hwnd, rect),
+            None => Err(Error::from_win32()),
+        }
+    }
+
     pub fn get_hwnd(&self) -> HWND {
         self.hwnd
+    }
+
+    pub fn set_drawing(&mut self, drawing: Drawing) {
+        self.drawing = Some(drawing);
+    }
+
+    pub fn fill_background(&self, color: D2D1_COLOR_F) -> Result<(), Error> {
+        match &self.drawing {
+            Some(drawing) => drawing.fill_background(self.hwnd, color),
+            None => Err(Error::from_win32()),
+        }
     }
 
     pub fn set_foreground(&self) {
@@ -70,21 +98,6 @@ impl Window {
                 false => eprintln!("Error in RedrawWindow"),
                 _ => println!("RedrawWindow successful"),
             }
-        }
-    }
-
-    pub fn make_transparent(&self) -> Result<(), Error> {
-        unsafe {
-            SetLayeredWindowAttributes(self.hwnd, COLORREF(0x000000), (256.0) as u8, LWA_ALPHA);
-            let margins: MARGINS = MARGINS {
-                cxLeftWidth: -1,
-                cxRightWidth: -1,
-                cyBottomHeight: -1,
-                cyTopHeight: -1,
-            };
-            DwmExtendFrameIntoClientArea(self.hwnd, &margins);
-
-            Ok(())
         }
     }
 
@@ -188,6 +201,7 @@ impl WindowTemplate {
         Ok(Window {
             hwnd,
             window_type: builder.window_type,
+            drawing: None,
         })
     }
 }
@@ -307,6 +321,7 @@ impl WindowFactory for MainWindowFactory {
             window = Window {
                 hwnd,
                 window_type: builder.window_type,
+                drawing: None,
             };
         }
         Ok(window)

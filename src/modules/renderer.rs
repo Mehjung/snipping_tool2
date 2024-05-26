@@ -1,3 +1,5 @@
+use crate::modules::resource_manager::ResourceManager;
+
 use std::mem::ManuallyDrop;
 use windows::{
     core::*,
@@ -11,25 +13,30 @@ use windows::{
     },
 };
 
+#[derive(Clone)]
 pub struct Render {
     pub d2d_context: ID2D1DeviceContext,
     pub swap_chain: IDXGISwapChain1,
-    pub dcomp_device: IDCompositionDevice,
     pub dcomp_target: IDCompositionTarget,
     pub dcomp_visual: IDCompositionVisual,
     pub d2d_factory: ID2D1Factory2,
+    pub dcomp_device: IDCompositionDevice,
+    pub dxgi_factory: IDXGIFactory2,
     pub dpi_x: f32,
     pub dpi_y: f32,
 }
 
 impl Render {
-    pub fn new(hwnd: HWND) -> Result<Self> {
+    pub fn new(hwnd: HWND, resource_manager: &ResourceManager) -> Result<Self> {
+        let d2d_factory = &resource_manager.d2d_factory;
+        let dcomp_device = &resource_manager.dcomp_device;
+        let dxgi_factory = &resource_manager.dxgi_factory;
+
         unsafe {
             let mut d3d_device: Option<ID3D11Device> = None;
             let mut d3d_context: Option<ID3D11DeviceContext> = None;
             let mut dxgi_device: Option<IDXGIDevice> = None;
             let mut dxgi_adapter: Option<IDXGIAdapter> = None;
-            let mut dxgi_factory: Option<IDXGIFactory2> = None;
 
             let feature_levels = [D3D_FEATURE_LEVEL_11_0];
             D3D11CreateDevice(
@@ -47,7 +54,6 @@ impl Render {
 
             dxgi_device = Some(d3d_device.as_ref().unwrap().cast::<IDXGIDevice>().unwrap());
             dxgi_adapter = Some(dxgi_device.as_ref().unwrap().GetAdapter().unwrap());
-            dxgi_factory = Some(dxgi_adapter.as_ref().unwrap().GetParent().unwrap());
 
             let mut rect = RECT::default();
             GetClientRect(hwnd, &mut rect);
@@ -71,9 +77,8 @@ impl Render {
                 Flags: 0,
             };
 
-            let swap_chain = dxgi_factory
-                .as_ref()
-                .unwrap()
+            let swap_chain = resource_manager
+                .dxgi_factory
                 .CreateSwapChainForComposition(
                     dxgi_device.as_ref().unwrap(),
                     &swap_chain_desc,
@@ -81,25 +86,16 @@ impl Render {
                 )
                 .unwrap();
 
-            let d2d_factory: ID2D1Factory2 =
-                D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap();
-            let d2d_device = d2d_factory
-                .CreateDevice(dxgi_device.as_ref().unwrap())
-                .unwrap();
-            let d2d_context1 = d2d_device
-                .CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)
-                .unwrap();
-            let d2d_context: ID2D1DeviceContext = d2d_context1.cast().unwrap();
+            let d2d_device = d2d_factory.CreateDevice(dxgi_device.as_ref().unwrap())?;
+            let d2d_context1 = d2d_device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
+            let d2d_context: ID2D1DeviceContext = d2d_context1.cast()?;
 
-            let dcomp_device: IDCompositionDevice =
-                DCompositionCreateDevice(dxgi_device.as_ref().unwrap()).unwrap();
+            let dcomp_target = dcomp_device.CreateTargetForHwnd(hwnd, true)?;
+            let dcomp_visual = dcomp_device.CreateVisual()?;
 
-            let dcomp_target = dcomp_device.CreateTargetForHwnd(hwnd, true).unwrap();
-            let dcomp_visual = dcomp_device.CreateVisual().unwrap();
-
-            dcomp_visual.SetContent(&swap_chain).unwrap();
-            dcomp_target.SetRoot(&dcomp_visual).unwrap();
-            dcomp_device.Commit().unwrap();
+            dcomp_visual.SetContent(&swap_chain)?;
+            dcomp_target.SetRoot(&dcomp_visual)?;
+            dcomp_device.Commit()?;
 
             let (dpi_x, dpi_y) = get_dpi_for_window(hwnd);
             println!("DPI: ({}, {})", dpi_x, dpi_y);
@@ -108,10 +104,11 @@ impl Render {
             Ok(Render {
                 d2d_context,
                 swap_chain,
-                dcomp_device,
                 dcomp_target,
                 dcomp_visual,
-                d2d_factory,
+                d2d_factory: d2d_factory.clone(),
+                dcomp_device: dcomp_device.clone(),
+                dxgi_factory: dxgi_factory.clone(),
                 dpi_x,
                 dpi_y,
             })
@@ -146,7 +143,6 @@ impl Render {
             d2d_context.SetTarget(&target_bitmap);
 
             d2d_context.BeginDraw();
-
             d2d_context.Clear(Some(&D2D1_COLOR_F {
                 r: 0.0,
                 g: 0.0,

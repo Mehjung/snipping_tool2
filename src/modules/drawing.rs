@@ -1,6 +1,8 @@
 use crate::modules::renderer::Render;
+use crate::modules::resource_manager::ResourceManager;
 use std::mem::ManuallyDrop;
 
+use std::sync::{Arc, Mutex, MutexGuard};
 use windows::core::Result;
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
@@ -14,13 +16,16 @@ use windows::{
     },
 };
 
-pub struct Drawing<'a> {
-    render: &'a Render,
+#[derive(Clone)]
+
+pub struct Drawing {
+    render: Render,
 }
 
-impl<'a> Drawing<'a> {
-    pub fn new(render: &'a Render) -> Self {
-        Self { render }
+impl Drawing {
+    pub fn new(hwnd: HWND, resource_manager: &ResourceManager) -> Self {
+        let render = Render::new(hwnd, resource_manager).unwrap();
+        Drawing { render }
     }
 
     fn provide_env<F>(&self, hwnd: HWND, render_fn: F) -> Result<()>
