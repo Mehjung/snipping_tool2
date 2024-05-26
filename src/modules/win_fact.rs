@@ -1,27 +1,22 @@
 use crate::modules::drawing::Drawing;
-use crate::modules::renderer::Render;
-use std::{any::Any, default, os::raw::c_void, time::Instant};
+
+use std::os::raw::c_void;
 use windows::{
     core::{w, Error, PCWSTR},
     Win32::{
         Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
         Graphics::{
-            Direct2D::Common::{D2D1_COLOR_F, D2D_POINT_2F, D2D_RECT_F},
-            Dwm::DwmExtendFrameIntoClientArea,
+            Direct2D::Common::{D2D1_COLOR_F, D2D_RECT_F},
             Gdi::{CreateSolidBrush, RedrawWindow, RDW_ERASE, RDW_INVALIDATE, RDW_NOINTERNALPAINT},
         },
         System::LibraryLoader::GetModuleHandleW,
-        UI::{
-            Controls::MARGINS,
-            WindowsAndMessaging::{
-                CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, GetSystemMetrics,
-                LoadCursorW, RegisterClassW, SetForegroundWindow, SetLayeredWindowAttributes,
-                SetWindowPos, ShowWindow, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, HMENU,
-                HWND_TOPMOST, IDC_ARROW, IDC_CROSS, LWA_ALPHA, LWA_COLORKEY, SM_CXVIRTUALSCREEN,
-                SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SWP_NOMOVE, SWP_NOSIZE,
-                SW_HIDE, SW_SHOW, ULW_COLORKEY, WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSW,
-                WS_EX_COMPOSITED, WS_EX_LAYERED, WS_EX_NOREDIRECTIONBITMAP, WS_POPUP, WS_VISIBLE,
-            },
+        UI::WindowsAndMessaging::{
+            CreateWindowExW, DefWindowProcW, DestroyWindow, GetSystemMetrics, LoadCursorW,
+            RegisterClassW, SetForegroundWindow, SetWindowPos, ShowWindow, CS_HREDRAW, CS_OWNDC,
+            CS_VREDRAW, CW_USEDEFAULT, HMENU, HWND_TOPMOST, IDC_ARROW, IDC_CROSS,
+            SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+            SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOW, WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSW,
+            WS_EX_COMPOSITED, WS_EX_LAYERED, WS_EX_NOREDIRECTIONBITMAP, WS_POPUP,
         },
     },
 };
@@ -223,7 +218,7 @@ impl WindowFactory for TransparentWindowFactory {
             template.windowprops = WINDOWPROPS {
                 lpclassname: w!("TransparentWindowClass"),
                 lpwindowname: w!("TransparentWindow"),
-                dwexstyle: WS_EX_COMPOSITED | WS_EX_LAYERED,
+                dwexstyle: WS_EX_NOREDIRECTIONBITMAP,
                 dwstyle: WS_POPUP,
                 x: GetSystemMetrics(SM_XVIRTUALSCREEN),
                 y: GetSystemMetrics(SM_YVIRTUALSCREEN),
@@ -234,7 +229,6 @@ impl WindowFactory for TransparentWindowFactory {
 
             template.classprops = WNDCLASSW {
                 style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
-                hbrBackground: CreateSolidBrush(COLORREF(0x00000000)),
                 hCursor: LoadCursorW(None, IDC_CROSS)?,
                 lpfnWndProc: Some(builder.window_proc),
                 lpszClassName: template.windowprops.lpclassname,

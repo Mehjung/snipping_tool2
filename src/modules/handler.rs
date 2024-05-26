@@ -1,16 +1,11 @@
-use crate::modules::controller::{self, Command, WindowController};
-use crate::modules::win_fact::{WindowBuilder, WindowType};
-use std::sync::{Arc, Mutex, MutexGuard};
+use crate::modules::controller::{Command, WindowController};
+use crate::modules::win_fact::WindowType;
 
-use windows::{
-    core::*,
-    Win32::{
-        Foundation::*,
-        Graphics::{Direct2D::Common::*, Gdi::*},
-        System::LibraryLoader::*,
-        System::SystemServices::*,
-        UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
-    },
+use windows::Win32::{
+    Foundation::*,
+    Graphics::{Direct2D::Common::*, Gdi::*},
+    System::SystemServices::*,
+    UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
 };
 
 fn update_rect(rect: &mut D2D_RECT_F, x: f32, y: f32) {
@@ -82,26 +77,9 @@ pub extern "system" fn win_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LP
                 }
                 LRESULT(0)
             }
-            WM_SETCURSOR => {
-                let cursor = LoadCursorW(None, IDC_ARROW);
-                if let Ok(cursor_handle) = cursor {
-                    SetCursor(cursor_handle);
-                }
-                LRESULT(0)
-            }
+
             WM_PAINT => {
-                if let Some(rect) = RECT {
-                    // Create a solid color brush
-                    let _brush_color = D2D1_COLOR_F {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    };
-
-                    controller.dispatch(WindowType::Main, Command::DrawOverlay(Some(rect)));
-                }
-
+                controller.dispatch(WindowType::Transparent, Command::DrawOverlay(RECT));
                 LRESULT(0)
             }
             WM_DESTROY => {

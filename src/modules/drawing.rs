@@ -2,7 +2,7 @@ use crate::modules::renderer::Render;
 use crate::modules::resource_manager::ResourceManager;
 use std::mem::ManuallyDrop;
 
-use std::sync::{Arc, Mutex, MutexGuard};
+
 use windows::core::Result;
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;

@@ -1,8 +1,8 @@
 use crate::modules::drawing::Drawing;
-use crate::modules::renderer::Render;
+
 use crate::modules::resource_manager::ResourceManager;
 use crate::modules::win_fact::{Window, WindowType};
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use std::sync::{Arc, Mutex, MutexGuard};
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
