@@ -4,10 +4,12 @@ use std::os::raw::c_void;
 use windows::{
     core::{w, Error, PCWSTR},
     Win32::{
-        Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
+        Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
         Graphics::{
             Direct2D::Common::{D2D1_COLOR_F, D2D_RECT_F},
-            Gdi::{CreateSolidBrush, RedrawWindow, RDW_ERASE, RDW_INVALIDATE, RDW_NOINTERNALPAINT},
+            Gdi::{
+                RedrawWindow, RDW_ERASE, RDW_INTERNALPAINT, RDW_INVALIDATE, RDW_NOINTERNALPAINT,
+            },
         },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
@@ -16,7 +18,7 @@ use windows::{
             CS_VREDRAW, CW_USEDEFAULT, HMENU, HWND_TOPMOST, IDC_ARROW, IDC_CROSS,
             SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
             SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOW, WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSW,
-            WS_EX_COMPOSITED, WS_EX_LAYERED, WS_EX_NOREDIRECTIONBITMAP, WS_POPUP,
+            WS_EX_COMPOSITED, WS_EX_NOREDIRECTIONBITMAP, WS_POPUP,
         },
     },
 };
@@ -72,6 +74,12 @@ impl Window {
     pub fn hide(&self) {
         unsafe {
             ShowWindow(self.hwnd, SW_HIDE);
+        }
+    }
+
+    pub fn redraw_window(&self) {
+        unsafe {
+            RedrawWindow(self.hwnd, None, None, RDW_INTERNALPAINT);
         }
     }
 

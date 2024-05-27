@@ -49,7 +49,8 @@ pub extern "system" fn win_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LP
 
         match msg {
             WM_CREATE => {
-                RECT = None; // Initialisieren als None
+                RECT = None;
+
                 LRESULT(0)
             }
             WM_KEYDOWN => {
@@ -72,7 +73,8 @@ pub extern "system" fn win_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LP
                 } else if msg == WM_MOUSEMOVE && (wparam.0 & MK_LBUTTON.0 as usize) != 0 {
                     if let Some(ref mut rect) = RECT {
                         update_rect(rect, x, y);
-                        RedrawWindow(hwnd, None, None, RDW_INTERNALPAINT);
+
+                        controller.dispatch(WindowType::Transparent, Command::RedrawWindow);
                     }
                 }
                 LRESULT(0)
@@ -82,6 +84,19 @@ pub extern "system" fn win_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LP
                 controller.dispatch(WindowType::Transparent, Command::DrawOverlay(RECT));
                 LRESULT(0)
             }
+            WM_ERASEBKGND => {
+                let _ = controller.dispatch(
+                    WindowType::Transparent,
+                    Command::FillBackground(D2D1_COLOR_F {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.6,
+                    }),
+                );
+                LRESULT(1)
+            }
+
             WM_DESTROY => {
                 PostQuitMessage(0);
                 LRESULT(0)

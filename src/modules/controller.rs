@@ -11,6 +11,7 @@ pub enum Command {
     Show,
     DrawOverlay(Option<D2D_RECT_F>),
     FillBackground(D2D1_COLOR_F),
+    RedrawWindow,
 }
 
 pub struct WindowController {
@@ -73,6 +74,7 @@ impl WindowController {
                 Command::Show => window.show(),
                 Command::DrawOverlay(rect) => window.draw_overlay(rect)?,
                 Command::FillBackground(color) => window.fill_background(color)?,
+                Command::RedrawWindow => window.redraw_window(),
             }
         }
         Ok(())
